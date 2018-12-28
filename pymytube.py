@@ -200,15 +200,34 @@ def download_audio(content_id, output_path, include_subtitle=False):
 
     return True
 
-def download_video(content_id, output_path):
+def download_video(content_id, output_path, include_subtitle=False):
     content_url = 'https://www.youtube.com/watch?v={0}'.format(content_id)
 
     try:
-        yt = pytube.YouTube(content_url) 
+        yt = pytube.YouTube(content_url)
         vnum = 0
         os.makedirs(output_path, exist_ok=True)
         vids= yt.streams.filter(file_extension='mp4').all()
         vids[vnum].download(output_path)
+
+        # if include_subtitle:
+        #     # is exist korea subtitle ?
+        #     if yt.captions.get_by_language_code('ko') is None : return False
+        #     if yt.captions.get_by_language_code('ko').name.find('자동 생성됨') < 0:
+        #         return False
+
+        if include_subtitle:
+            # print(yt.captions.all())
+            caption = yt.captions.get_by_language_code('en')
+            try:
+                filename = os.path.splitext(vids[vnum].default_filename)[0]
+                with open(output_path+filename+'.srt', 'w', encoding='utf-8') as f:
+                    f.write(caption.xml_captions)
+            except Exception as e:
+                print('Error :', e)
+                # print('File Name :', output_path+vids[vnum].default_filename)
+                return False
+
     except Exception as e:
         print('Error :', e)
         return False
@@ -226,23 +245,34 @@ def cvt_video_to_wav(input, output_path):
 
     return True
 
+def cvt_video_to_mp3(input, output_path):
+    os.makedirs(output_path, exist_ok=True)
+    output = output_path+os.path.splitext(os.path.basename(input))[0]+'.mp3'
+    # print(input, '변환 시작.')
+    # ffmpeg_path = 'C:/ffmpeg/bin/'
+    # subprocess.call([ffmpeg_path+'ffmpeg', '-i', input, '-f', 'f32be', '-ar', '44100', output])
+    subprocess.call(['ffmpeg', '-i', input, '-acodec', 'libmp3lame', output])
+    # print(input, '변환 완료!')
+    return True
+
 def test2():
-    output_path = 'test/'
+    output_path = 'cs321n_video_kr/'
     # content_list = get_contents_by_username('cbs15min')
-    playlists = get_playlists_by_username('AngeloYeo', include_title=True)
+    # playlists = get_playlists_by_username('AngeloYeo', include_title=True)
     # print(playlists[:20])
     # print(len(playlists))
 
-    for title, playlist_id in playlists:
-        content_list = get_contents_by_playlist(playlist_id)
-        title_output_path = output_path + title + '/'
-        # get_video = partial(download_video, output_path=title_output_path)
-        download_files = partial(download_audio, output_path=output_path, include_subtitle=False)
+    # for title, playlist_id in playlists:
+    playlist_id = 'PL1Kb3QTCLIVtyOuMgyVgT-OeW0PYXl3j5'
+    content_list = get_contents_by_playlist(playlist_id)
+    # title_output_path = output_path + title + '/'
+    # get_video = partial(download_video, output_path=title_output_path)
+    download_files = partial(download_video, output_path=output_path, include_subtitle=False)
 
-        pool = Pool(processes=16)
-        pool.map(download_files, content_list)
-        pool.close()
-        pool.join()
+    pool = Pool(processes=16)
+    pool.map(download_files, content_list)
+    pool.close()
+    pool.join()
 
 def test():
     output_path = 'test/'
